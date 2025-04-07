@@ -34,6 +34,20 @@ public:
     }
 };
 
+
+void printWarning(string message) {
+    cout << "\033[1;31m  !! " << message << "\033[0m\n";
+}
+
+void printCommand(string message) {
+    cout << "\n\033[2m╭────\033[0m" << message << "\n\033[2m╰─\033[0;32m❯❯ \033[0m";
+}
+
+void printResult(string message) {
+    cout << "\033[1;32m  │╞ " << message << "\033[0m\n";
+}
+
+
 RGB calculateAverageColor(const CImg<unsigned char>& image, int x, int y, int width, int height) {
     RGB avg = {};
     double numPixels = static_cast<double>(width) * height;
@@ -168,18 +182,6 @@ void reconstructImage(CImg<unsigned char>& outputImage, const QuadtreeNode* node
     }
 }
 
-
-void printWarning(string message) {
-    cout << "\033[1;31m  !! " << message << "\033[0m\n";
-}
-
-void printCommand(string message) {
-    cout << "\n\033[2m╭────\033[0m" << message << "\n\033[2m╰─\033[0;32m❯❯ \033[0m";
-}
-
-void printResult(string message) {
-    cout << "\033[1;32m  │╞ " << message << "\033[0m\n";
-}
 
 int main() {
     string inputFile, outputFile;
