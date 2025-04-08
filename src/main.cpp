@@ -272,10 +272,12 @@ int main() {
         printLine("Metode error           : " + errorStr);
         printLine("Threshold              : " + to_string(threshold));
         printLine("Blok Minimum           : " + to_string(minBlockSize));
-        printLine("Ukuran sebelum (bytes) : " + to_string(inputSize));
-
+        printLine("Ukuran sebelum         : " + to_string(inputSize / (1024.0 * 1024.0)) + " MiB (" + 
+                                                to_string(inputSize) + " bytes)");
+        
         long long outputSize = getFileSizeStream(outputFile);
-        printLine("Ukuran sesudah (bytes) : " + to_string(outputSize));
+        printLine("Ukuran susudah         : " + to_string(outputSize / (1024.0 * 1024.0)) + " MiB (" + 
+                                                to_string(outputSize) + " bytes)");
 
         double compressionRatio = static_cast<double>(outputSize) / inputSize;
         printLine("Rasio kompresi         : " + to_string(compressionRatio));
