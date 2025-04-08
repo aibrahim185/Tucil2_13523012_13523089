@@ -5,6 +5,7 @@
 #include <numeric>
 #include <limits>
 #include <chrono>
+#include <fstream> 
 
 #define cimg_display 0
 #include "CImg-3.5.4_pre04072515/CImg.h"
@@ -43,8 +44,16 @@ void printCommand(string message) {
     cout << "\n\033[2m╭────\033[0m" << message << "\n\033[2m╰─\033[0;32m❯❯ \033[0m";
 }
 
-void printResult(string message) {
-    cout << "\033[1;32m  │╞ " << message << "\033[0m\n";
+void printLine(string message) {
+    cout << "\033[1;32m  ▓╟ " << message << "\033[0m\n";
+}
+
+
+long long getFileSizeStream(const std::string& filepath) {
+    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
+    std::streampos size = file.tellg();
+    file.close();
+    return static_cast<long long>(size);
 }
 
 
@@ -189,10 +198,13 @@ int main() {
     double threshold;
     int minBlockSize;
 
-    cout << "\n========== Kompresi Gambar Quadtree ==========\n";
-
+    cout << endl;
+    printLine("========== Kompresi Gambar Quadtree ==========");
+    
     printCommand("Masukkan path gambar input");
     cin >> inputFile;
+    // TODO: Validasi 
+    long long inputSize = getFileSizeStream(inputFile);
 
     printCommand("Pilih metode error (1=Variance, 2=MAD, 3=MaxDiff, 4=Entropy, 5=SSIM)");
     cin >> errorMethodChoice;
@@ -210,37 +222,69 @@ int main() {
     cin >> outputFile;
 
     // --- Process ---
+    cout << "\n";
     try {
+        printLine("Membaca File...");
         CImg<unsigned char> inputImage(inputFile.c_str());
-        cout << "\n";
-        printResult("Size: " + to_string(inputImage.width()) + "x" + to_string(inputImage.height()));
-
-        long long sizeBefore = static_cast<long long>(inputImage.width()) * inputImage.height() * inputImage.spectrum();
-
+        
+        printLine("Memulai Kompresi...");
         CImg<unsigned char> outputImage(inputImage.width(), inputImage.height(), 1, 3, 0);
-
+        
         auto startTime = chrono::high_resolution_clock::now();
-
+        
         nodeCount = 0;
         maxDepth = 0;
-
+        
         QuadtreeNode* root = buildQuadtree(inputImage, 0, 0, inputImage.width(), inputImage.height(),
-                                            threshold, minBlockSize, 0, errorMethodChoice);
-
+        threshold, minBlockSize, 0, errorMethodChoice);
+        
         reconstructImage(outputImage, root);
-
+        
         auto endTime = chrono::high_resolution_clock::now();
         chrono::duration<double, milli> duration = endTime - startTime;
-
+        printLine("Kompresi Selesai.");
+        
+        printLine("Menyimpan file gambar...");
         outputImage.save(outputFile.c_str());
-        printResult("Gambar hasil kompresi disimpan ke: " + outputFile);
+        printLine("Gambar tersimpan.");
 
+        printLine("");
+        
         // --- Statistik ---
-        cout << "\n  --- Statistik ---" << endl;
-        printResult("Waktu eksekusi         : " + to_string(duration.count()) + " ms");
-        printResult("Ukuran sebelum (bytes) : " + to_string(sizeBefore));
-        printResult("Kedalaman pohon maks   : " + to_string(maxDepth));
-        printResult("Jumlah simpul total    : " + to_string(nodeCount));
+        printLine("--- Statistik ---");
+        printLine("Path gambar output     : " + outputFile);
+        printLine("Waktu eksekusi         : " + to_string(duration.count()) + " ms");
+        
+        printLine("Resolusi Gambar        : " + to_string(inputImage.width()) + "x" + to_string(inputImage.height()));
+
+        string errorStr = "";
+        if (errorMethodChoice == 1) {
+            errorStr = "Variance";
+        } else if (errorMethodChoice == 2) {
+            errorStr = "MAD";
+        } else if (errorMethodChoice == 3) {
+            errorStr = "MaxDiff";
+        } else if (errorMethodChoice == 4) {
+            errorStr = "Entropy";
+        } else if (errorMethodChoice == 5) {
+            errorStr = "SSIM";
+        }
+        printLine("Metode error           : " + errorStr);
+        printLine("Threshold              : " + to_string(threshold));
+        printLine("Blok Minimum           : " + to_string(minBlockSize));
+        printLine("Ukuran sebelum (bytes) : " + to_string(inputSize));
+
+        long long outputSize = getFileSizeStream(outputFile);
+        printLine("Ukuran sesudah (bytes) : " + to_string(outputSize));
+
+        double compressionRatio = static_cast<double>(outputSize) / inputSize;
+        printLine("Rasio kompresi         : " + to_string(compressionRatio));
+
+        double compressionPercentage = (1.0 - compressionRatio) * 100.0;
+        printLine("Persentase kompresi    : " + to_string(compressionPercentage) + " %");
+        printLine("Kedalaman pohon maks   : " + to_string(maxDepth));
+        printLine("Jumlah simpul total    : " + to_string(nodeCount));
+        cout << endl;
 
         delete root;
 
