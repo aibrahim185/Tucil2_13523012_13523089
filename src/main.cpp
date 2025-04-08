@@ -48,6 +48,9 @@ void printLine(string message) {
     cout << "\033[1;32m  ▓╟ " << message << "\033[0m\n";
 }
 
+void clearCinBuffer() {
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
 
 long long getFileSizeStream(const std::string& filepath) {
     std::ifstream file(filepath, std::ios::binary | std::ios::ate);
@@ -201,22 +204,71 @@ int main() {
     cout << endl;
     printLine("========== Kompresi Gambar Quadtree ==========");
     
-    printCommand("Masukkan path gambar input");
-    cin >> inputFile;
-    // TODO: Validasi 
-    long long inputSize = getFileSizeStream(inputFile);
+    long long inputSize = -1;
+    while (true) {
+        printCommand("Masukkan path gambar input");
+        cin >> inputFile;
+        inputSize = getFileSizeStream(inputFile);
+        if (inputSize >= 0) {
+            break;
+        } else {
+            printWarning("Error: File tidak ditemukan atau tidak bisa diakses di '" + inputFile + "'. Silahkan coba lagi.");
+        }
+    }
 
-    printCommand("Pilih metode error (1=Variance, 2=MAD, 3=MaxDiff, 4=Entropy, 5=SSIM)");
-    cin >> errorMethodChoice;
-    // TODO: Validasi 
+    while (true) {
+        printCommand("Pilih metode error (1=Variance, 2=MAD, 3=MaxDiff, 4=Entropy, 5=SSIM)");
+        cin >> errorMethodChoice;
 
-    printCommand("Masukkan nilai threshold");
-    cin >> threshold;
-    // TODO: Validasi 
-
-    printCommand("Masukkan ukuran blok minimum");
-    cin >> minBlockSize;
-    if (minBlockSize < 1) minBlockSize = 1;
+        if (cin.fail()) {
+            printWarning("Error: Masukan harus berupa angka.");
+            cin.clear();
+            clearCinBuffer();
+            continue;
+        }
+        
+        if (errorMethodChoice >= 1 && errorMethodChoice <= 5) {
+            break;
+        } else {
+            printWarning("Error: Pilihan metoda harus antara 1 hingga 5 (inklusif).");
+        }
+    }
+    
+    while (true) {
+        printCommand("Masukkan nilai threshold (>= 0)");
+        cin >> threshold;
+        
+        if (cin.fail()) {
+            printWarning("Error: Masukan harus berupa angka.");
+            cin.clear();
+            clearCinBuffer();
+            continue;
+        }
+        
+        if (threshold >= 0.0) {
+            break;
+        } else {
+            printWarning("Error: Threshold tidal boleh negatif.");
+        }
+    }
+    
+    while (true) {
+        printCommand("Masukkan ukuran blok minimum (>= 1)");
+        cin >> minBlockSize;
+        
+        if (cin.fail()) {
+            printWarning("Error: Masukan harus berupa angka integer.");
+            cin.clear();
+            clearCinBuffer();
+            continue;
+        }
+        
+        if (minBlockSize >= 1) {
+            break; 
+        } else {
+            printWarning("Error: Ukuran blok minimum harus 1 atau lebih besar.");
+        }
+    }
 
     printCommand("Masukkan path gambar output");
     cin >> outputFile;
