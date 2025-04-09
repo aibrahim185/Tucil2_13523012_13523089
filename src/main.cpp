@@ -131,6 +131,62 @@ double calculateErrorMAD(const CImg<unsigned char>& image, int x, int y, int wid
     return (r_mad + g_mad + b_mad) / 3.0;
 }
 
+double calculateErrorMaxDiff(const CImg<unsigned char>& image, int x, int y, int width, int height) {
+    if (width <= 0 || height <= 0) return 0.0;
+    unsigned char minR = 255, maxR = 0;
+    unsigned char minG = 255, maxG = 0;
+    unsigned char minB = 255, maxB = 0;
+    for (int j = y; j < y + height; ++j) {
+        for (int i = x; i < x + width; ++i) {
+            unsigned char r = image(i, j, 0, 0);
+            unsigned char g = image(i, j, 0, 1);
+            unsigned char b = image(i, j, 0, 2);
+            if (r < minR) minR = r;
+            if (r > maxR) maxR = r;
+            if (g < minG) minG = g;
+            if (g > maxG) maxG = g;
+            if (b < minB) minB = b;
+            if (b > maxB) maxB = b;
+        }
+    }
+    double DR = static_cast<double>(maxR - minR);
+    double DG = static_cast<double>(maxG - minG);
+    double DB = static_cast<double>(maxB - minB);
+    double DRGB = (DR + DG + DB) / 3.0;
+    return DRGB;
+}
+
+double calculateEntropy(const CImg<unsigned char>& image, int x, int y, int width, int height) {
+    if (width <= 0 || height <= 0) return 0.0;
+    std::vector<int> freqR(256, 0), freqG(256, 0), freqB(256, 0);
+    int totalPixels = width * height;
+    for (int j = y; j < y + height; ++j) {
+        for (int i = x; i < x + width; ++i) {
+            unsigned char r = image(i, j, 0, 0);
+            unsigned char g = image(i, j, 0, 1);
+            unsigned char b = image(i, j, 0, 2);
+            freqR[r]++;
+            freqG[g]++;
+            freqB[b]++;
+        }
+    }
+    auto calculateChannelEntropy = [&](const std::vector<int>& freq) -> double {
+        double entropy = 0.0;
+        for (int i = 0; i < 256; ++i) {
+            if (freq[i] > 0) {
+                double probability = static_cast<double>(freq[i]) / totalPixels;
+                entropy -= probability * std::log2(probability);
+            }
+        }
+        return entropy;
+    };
+    double entropyR = calculateChannelEntropy(freqR);
+    double entropyG = calculateChannelEntropy(freqG);
+    double entropyB = calculateChannelEntropy(freqB);
+    double entropyRGB = (entropyR + entropyG + entropyB) / 3.0;
+    return entropyRGB;
+}
+
 long long nodeCount = 0;
 int maxDepth = 0;
 
@@ -152,14 +208,9 @@ QuadtreeNode* buildQuadtree(const CImg<unsigned char>& image, int x, int y, int 
     } else if (errorMethod == 2) { 
         error = calculateErrorMAD(image, x, y, width, height, node->avgColor);
     } else if (errorMethod == 3) {
-        // TODO
-        // error = calculateErrorMaxDiff(image, x, y, width, height);
-        cout << "Max Pixel Difference." << endl; 
-        error = 0; 
+        error = calculateErrorMaxDiff(image, x, y, width, height);
     } else if (errorMethod == 4) {
-        // TODO
-        cout << "Entropy." << endl; 
-        error = 0; 
+        error = calculateEntropy(image, x, y, width, height);
     } else if (errorMethod == 5) {
         // TODO
         cout << "SSIM" << endl;
