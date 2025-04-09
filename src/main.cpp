@@ -104,6 +104,33 @@ double calculateErrorVariance(const CImg<unsigned char>& image, int x, int y, in
     return (r_variance + g_variance + b_variance) / 3.0;
 }
 
+double calculateErrorMAD(const CImg<unsigned char>& image, int x, int y, int width, int height, const RGB& avgColor) {
+    double numPixels = static_cast<double>(width) * height;
+    if (numPixels == 0) return 0.0;
+
+    double r_mad_sum = 0.0, g_mad_sum = 0.0, b_mad_sum = 0.0;
+
+    int x_end = min(x + width, image.width());
+    int y_end = min(y + height, image.height());
+
+    for (int j = y; j < y_end; ++j) {
+        for (int i = x; i < x_end; ++i) {
+            r_mad_sum += abs(image(i, j, 0, 0) - avgColor.r);
+            g_mad_sum += abs(image(i, j, 0, 1) - avgColor.g);
+            b_mad_sum += abs(image(i, j, 0, 2) - avgColor.b);
+        }
+    }
+
+    numPixels = static_cast<double>(x_end - x) * (y_end - y);
+    if (numPixels <= 0) return 0.0;
+
+    double r_mad = r_mad_sum / numPixels;
+    double g_mad = g_mad_sum / numPixels;
+    double b_mad = b_mad_sum / numPixels;
+
+    return (r_mad + g_mad + b_mad) / 3.0;
+}
+
 long long nodeCount = 0;
 int maxDepth = 0;
 
@@ -123,8 +150,7 @@ QuadtreeNode* buildQuadtree(const CImg<unsigned char>& image, int x, int y, int 
     if (errorMethod == 1) {
         error = calculateErrorVariance(image, x, y, width, height, node->avgColor);
     } else if (errorMethod == 2) { 
-        cout << "MAD." << endl; 
-        error = 0; 
+        error = calculateErrorMAD(image, x, y, width, height, node->avgColor);
     } else if (errorMethod == 3) {
         // TODO
         // error = calculateErrorMaxDiff(image, x, y, width, height);
@@ -278,6 +304,10 @@ int main() {
     try {
         printLine("Membaca File...");
         CImg<unsigned char> inputImage(inputFile.c_str());
+
+        if (inputImage.spectrum() != 3) {
+            printWarning("Gambar input tidak memiliki 3 channel warna (RGB). Program mungkin tidak berfungsi benar.");
+        }
         
         printLine("Memulai Kompresi...");
         CImg<unsigned char> outputImage(inputImage.width(), inputImage.height(), 1, 3, 0);
@@ -297,6 +327,11 @@ int main() {
         printLine("Kompresi Selesai.");
         
         printLine("Menyimpan file gambar...");
+        size_t dotPos = outputFile.find_last_of(".");
+        if (dotPos == string::npos) {
+            outputFile += ".png";
+            printWarning("Ekstensi file output tidak dispesifikasi. Menyimpan sebagai PNG.");
+        }
         outputImage.save(outputFile.c_str());
         printLine("Gambar tersimpan.");
 
@@ -328,14 +363,24 @@ int main() {
                                                 to_string(inputSize) + " bytes)");
         
         long long outputSize = getFileSizeStream(outputFile);
-        printLine("Ukuran susudah         : " + to_string(outputSize / (1024.0 * 1024.0)) + " MiB (" + 
-                                                to_string(outputSize) + " bytes)");
+        if (outputSize >= 0) {
+            printLine("Ukuran sesudah         : " + to_string(outputSize / (1024.0 * 1024.0)) + " MiB (" +
+                                                  to_string(outputSize) + " bytes)");
 
-        double compressionRatio = static_cast<double>(outputSize) / inputSize;
-        printLine("Rasio kompresi         : " + to_string(compressionRatio));
+            if (inputSize > 0) {
+                double compressionRatio = static_cast<double>(outputSize) / inputSize;
+                printLine("Rasio kompresi         : " + to_string(compressionRatio));
 
-        double compressionPercentage = (1.0 - compressionRatio) * 100.0;
-        printLine("Persentase kompresi    : " + to_string(compressionPercentage) + " %");
+                double compressionPercentage = (1.0 - compressionRatio) * 100.0;
+                printLine("Persentase kompresi    : " + to_string(compressionPercentage) + " %");
+            } else {
+                printLine("Rasio kompresi         : N/A (Ukuran input 0 atau error)");
+                printLine("Persentase kompresi    : N/A");
+            }
+        } else {
+            printWarning("Tidak dapat membaca ukuran file output.");
+        }
+
         printLine("Kedalaman pohon maks   : " + to_string(maxDepth));
         printLine("Jumlah simpul total    : " + to_string(nodeCount));
         cout << endl;
