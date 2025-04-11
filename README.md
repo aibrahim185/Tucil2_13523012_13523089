@@ -83,9 +83,7 @@ Program akan meminta Anda secara interaktif untuk memasukkan detail berikut:
 - Ukuran blok minimum (angka integer >= 1).
 - Path gambar output.
 
-  ## Cara Menjalankan
-
-  Ada dua cara untuk menjalankan program setelah kompilas
+## Anggota
 
 | Nama          | Nomor ID |
 | ------------- | -------- |
