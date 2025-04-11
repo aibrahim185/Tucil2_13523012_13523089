@@ -6,6 +6,7 @@
 #include <limits>
 #include <chrono>
 #include <fstream> 
+#include <filesystem>
 
 #define cimg_display 0
 #include "CImg-3.5.4_pre04072515/CImg.h"
@@ -273,25 +274,34 @@ void reconstructImage(CImg<unsigned char>& outputImage, const QuadtreeNode* node
 
 
 int main() {
-    string inputFile, outputFile;
+    string inputFile, outputFile = "test/default.png";
+    string errorStr = "";
     int errorMethodChoice;
-    double threshold;
+    double threshold, maxThreshold;
     int minBlockSize;
+    CImg<unsigned char> inputImage;
 
     cout << endl;
     printLine("========== Kompresi Gambar Quadtree ==========");
+    cout << "\033[1;32m  ▓╟ Current Working Directory: " << std::filesystem::current_path() << "\033[0m\n";
     
-    long long inputSize = -1;
     while (true) {
         printCommand("Masukkan path gambar input");
-        cin >> inputFile;
-        inputSize = getFileSizeStream(inputFile);
-        if (inputSize >= 0) {
+        getline(cin, inputFile);
+
+        try {
+            CImg<unsigned char> testImg(inputFile.c_str());
+            inputImage = testImg;
+            if (inputImage.spectrum() != 3) {
+                printWarning("Gambar input tidak memiliki 3 channel warna (RGB). Program mungkin tidak berfungsi benar.");
+            }
             break;
-        } else {
-            printWarning("Error: File tidak ditemukan atau tidak bisa diakses di '" + inputFile + "'. Silahkan coba lagi.");
+        } catch (const cimg_library::CImgException& e) {
+            printWarning("Error: Gambar tidak dikenali.");
+            continue;
         }
     }
+    long long inputSize = getFileSizeStream(inputFile);
 
     while (true) {
         printCommand("Pilih metode error (1=Variance, 2=MAD, 3=MaxDiff, 4=Entropy, 5=SSIM)");
@@ -311,8 +321,32 @@ int main() {
         }
     }
     
+    switch (errorMethodChoice) {
+        case 1: 
+            maxThreshold = 65025.0; 
+            errorStr = "Variance";
+            break;
+        case 2: 
+            maxThreshold = 255.0; 
+            errorStr = "Mean Absolute Deviation (MAD)";
+            break;
+        case 3: 
+            maxThreshold = 255.0; 
+            errorStr = "Max Pixel Difference";
+            break;
+        case 4: 
+            maxThreshold = 8.0; 
+            errorStr = "Entropy";
+            break;
+        case 5: 
+            maxThreshold = 1000.0; // TODO
+            errorStr = "SSIM";
+            break;
+    }
+
     while (true) {
-        printCommand("Masukkan nilai threshold (>= 0)");
+        printCommand("Masukkan nilai threshold untuk " + errorStr +
+                    " (rentang efektif: 0.0 - " + to_string(maxThreshold) + ")");
         cin >> threshold;
         
         if (cin.fail()) {
@@ -323,6 +357,9 @@ int main() {
         }
         
         if (threshold >= 0.0) {
+            if (threshold > maxThreshold) {
+                printWarning("Nilai di atas " + to_string(maxThreshold) + " kemungkinan tidak akan berpengaruh pada kompresi");
+            }
             break;
         } else {
             printWarning("Error: Threshold tidal boleh negatif.");
@@ -347,19 +384,13 @@ int main() {
         }
     }
 
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     printCommand("Masukkan path gambar output");
-    cin >> outputFile;
+    getline(cin, outputFile);
 
     // --- Process ---
     cout << "\n";
     try {
-        printLine("Membaca File...");
-        CImg<unsigned char> inputImage(inputFile.c_str());
-
-        if (inputImage.spectrum() != 3) {
-            printWarning("Gambar input tidak memiliki 3 channel warna (RGB). Program mungkin tidak berfungsi benar.");
-        }
-        
         printLine("Memulai Kompresi...");
         CImg<unsigned char> outputImage(inputImage.width(), inputImage.height(), 1, 3, 0);
         
@@ -395,18 +426,6 @@ int main() {
         
         printLine("Resolusi Gambar        : " + to_string(inputImage.width()) + "x" + to_string(inputImage.height()));
 
-        string errorStr = "";
-        if (errorMethodChoice == 1) {
-            errorStr = "Variance";
-        } else if (errorMethodChoice == 2) {
-            errorStr = "MAD";
-        } else if (errorMethodChoice == 3) {
-            errorStr = "MaxDiff";
-        } else if (errorMethodChoice == 4) {
-            errorStr = "Entropy";
-        } else if (errorMethodChoice == 5) {
-            errorStr = "SSIM";
-        }
         printLine("Metode error           : " + errorStr);
         printLine("Threshold              : " + to_string(threshold));
         printLine("Blok Minimum           : " + to_string(minBlockSize));
