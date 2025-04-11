@@ -188,6 +188,89 @@ double calculateEntropy(const CImg<unsigned char>& image, int x, int y, int widt
     return entropyRGB;
 }
 
+double calculateSSIM(const CImg<unsigned char>& originalImage, int x, int y, int width, int height, 
+    const RGB& avgColor) {
+    const double L = 255.0; 
+    const double k1 = 0.01;  
+    const double k2 = 0.03;  
+    const double C1 = (k1 * L) * (k1 * L);  // (k1*L)²
+    const double C2 = (k2 * L) * (k2 * L);  // (k2*L)²
+
+    const double wR = 1.0/3.0;
+    const double wG = 1.0/3.0;
+    const double wB = 1.0/3.0;
+
+    double meanR_orig = 0.0, meanG_orig = 0.0, meanB_orig = 0.0;
+    double varR_orig = 0.0, varG_orig = 0.0, varB_orig = 0.0;
+
+    for (int j = y; j < y + height; ++j) {
+        for (int i = x; i < x + width; ++i) {
+            meanR_orig += originalImage(i, j, 0, 0);
+            meanG_orig += originalImage(i, j, 0, 1);
+            meanB_orig += originalImage(i, j, 0, 2);
+        }
+    }
+
+    double numPixels = width * height;
+    meanR_orig /= numPixels;
+    meanG_orig /= numPixels;
+    meanB_orig /= numPixels;
+
+    for (int j = y; j < y + height; ++j) {
+        for (int i = x; i < x + width; ++i) {
+            double diffR = originalImage(i, j, 0, 0) - meanR_orig;
+            double diffG = originalImage(i, j, 0, 1) - meanG_orig;
+            double diffB = originalImage(i, j, 0, 2) - meanB_orig;
+
+            varR_orig += diffR * diffR;
+            varG_orig += diffG * diffG;
+            varB_orig += diffB * diffB;
+        }
+    }
+
+    varR_orig /= numPixels;
+    varG_orig /= numPixels;
+    varB_orig /= numPixels;
+
+    double meanR_comp = avgColor.r;
+    double meanG_comp = avgColor.g;
+    double meanB_comp = avgColor.b;
+
+    double covR = 0.0, covG = 0.0, covB = 0.0;
+
+    for (int j = y; j < y + height; ++j) {
+        for (int i = x; i < x + width; ++i) {
+            double diffR_orig = originalImage(i, j, 0, 0) - meanR_orig;
+            double diffG_orig = originalImage(i, j, 0, 1) - meanG_orig;
+            double diffB_orig = originalImage(i, j, 0, 2) - meanB_orig;
+
+            double diffR_comp = originalImage(i, j, 0, 0) - meanR_comp;
+            double diffG_comp = originalImage(i, j, 0, 1) - meanG_comp;
+            double diffB_comp = originalImage(i, j, 0, 2) - meanB_comp;
+
+            covR += diffR_orig * diffR_comp;
+            covG += diffG_orig * diffG_comp;
+            covB += diffB_orig * diffB_comp;
+        }
+    }
+
+    covR /= numPixels;
+    covG /= numPixels;
+    covB /= numPixels;
+
+    double ssimR = ((2 * meanR_orig * meanR_comp + C1) * (2 * covR + C2)) / 
+    ((meanR_orig * meanR_orig + meanR_comp * meanR_comp + C1) * (varR_orig + 0 + C2));
+
+    double ssimG = ((2 * meanG_orig * meanG_comp + C1) * (2 * covG + C2)) / 
+    ((meanG_orig * meanG_orig + meanG_comp * meanG_comp + C1) * (varG_orig + 0 + C2));
+
+    double ssimB = ((2 * meanB_orig * meanB_comp + C1) * (2 * covB + C2)) / 
+    ((meanB_orig * meanB_orig + meanB_comp * meanB_comp + C1) * (varB_orig + 0 + C2));
+
+    double ssimRGB = wR * ssimR + wG * ssimG + wB * ssimB;
+    return ssimRGB;
+}
+
 long long nodeCount = 0;
 int maxDepth = 0;
 
@@ -213,9 +296,7 @@ QuadtreeNode* buildQuadtree(const CImg<unsigned char>& image, int x, int y, int 
     } else if (errorMethod == 4) {
         error = calculateEntropy(image, x, y, width, height);
     } else if (errorMethod == 5) {
-        // TODO
-        cout << "SSIM" << endl;
-        error = 0;
+        error = calculateSSIM(image, x, y, width, height, node->avgColor);
     } else {
         printWarning("Metode error tidak valid!");
         error = 0;
@@ -339,7 +420,7 @@ int main() {
             errorStr = "Entropy";
             break;
         case 5: 
-            maxThreshold = 1000.0; // TODO
+            maxThreshold = 2;
             errorStr = "SSIM";
             break;
     }
